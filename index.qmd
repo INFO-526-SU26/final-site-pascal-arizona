@@ -1,11 +1,11 @@
 ---
-title: "Project Title"
-subtitle: "INFO 526 - Summer 2024 - Final Project"
+title: "Final Project"
+subtitle: "INFO 526 - Summer 2026"
 author: 
-  - name: "Team name"
+  - name: "Pascal"
     affiliations:
       - name: "School of Information, University of Arizona"
-description: "Project description"
+description: "Comparing the box office, profitability, and ratings of films based on video games."
 format:
    html:
     code-tools: true
@@ -19,4 +19,8 @@ execute:
 
 ## Abstract
 
-Add project abstract here.
+This TidyTuesday dataset, **Films Based on Video Games**, is scraped from the Wikipedia article [*List of films based on video games*](https://en.wikipedia.org/wiki/List_of_films_based_on_video_games) and curated by Georgios Karamanis. Each row is one film adaptation, with `r ncol(game_films)` variables spanning `r nrow(game_films)` films released since the early 1980s to upcoming titles.
+
+Source: [TidyTuesday, 2026-06-09](https://github.com/rfordatascience/tidytuesday/tree/main/data/2026/2026-06-09), scraped from Wikipedia's *List of films based on video games*.
+
+It covers theatrical releases, direct-to-video, TV films, shorts, and documentaries, recording box office, budgets, critic and audience scores, distributors, and the original game publisher. I chose it because game-to-film adaptations have been growing greatly in the past decades, which raises questions as to how these adaptations actually do.

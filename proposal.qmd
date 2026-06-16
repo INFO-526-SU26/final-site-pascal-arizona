@@ -69,23 +69,25 @@ Question 2 will additionally merge an external video-games ratings dataset (more
 
 - **Variables used:** `worldwide_box_office`, `worldwide_box_office_currency`, `budget_low`, `budget_high`, `original_game_publisher`, `release_date`.
 
-- **Variables to create:** `release_era` (decade, from `release_date`), `profit` and `roi` (box office to mid-budget), a collapsed publisher factor (top publishers + "Other").
+- **Variables to create:** `release_era` (decade, from `release_date`), `profit` and `roi` (box office to mid-budget), `box_office_real` (adjusting for inflation via CPI), a collapsed publisher factor (top publishers + "Other").
 
 - **Filtering:** restrict to `$(USD)` box office for comparability (`r n_usd` films); box office + budget overlap is `r n_profit` films, which I will use as the profitability sample.
 
 - **Approach:** box office and return on investment summarized by publisher (bar/boxplot) and by era (trend), plus a budget vs box-office scatter plot to show which adaptations actually turned a profit.
 
+- **External Data merged:** *Annual U.S. CPI*, used to convert box office amounts into inflation-adjusted dollars. 
+
 ### Question 2: Game vs. film ratings
 
 - **Variables used (films):** `metacritic`, `rotten_tomatoes`, `cinema_score`, `original_game_publisher`, `release_date`.
 
-- **Variables to create:** a `franchise` key applied to both tables via `str_detect` (e.g., all "Resident Evil" titles -\> one franchise), franchise level averages of game and film scores, a `rating_gap` = game score - film score, numeric conversion of `cinema_score` letter grades for an audience comparison.
+- **Variables to create:** a `franchise` key applied to both tables via `str_detect` (e.g., all "Resident Evil" titles -\> one franchise), franchise level averages of game and film scores, a `rating_gap` = average game score - average film score, numeric conversion of `cinema_score` letter grades for an audience comparison.
 
 - **External Data merged:** *Video Game Sales with Ratings* (VGChartz + Metacritic), providing `Critic_Score` (0-100, same scale as film Metacritic) and `User_Score` (0-10) per game.
 
 - **Join:** `group_by(franchise) |> summarize(...)` on each side, then `left_join`, giving one row per franchise.
 
-- **Approach:** scatter plot of average game score vs. average film score per franchise with a reference line (agreement), and the gap broken out by publisher/era.
+- **Approach:** a scatter plot of the average game score vs. the average film score per franchise, with a reference line. Points above the line are franchises whose films were better-reviewed than their games, as opposed to points below which are the opposite. I will then group the `rating_gap` (game score - film score) by publisher and by era to see whether certain publishers or periods show consistently larger gaps.
 
 ## Plan of attack
 
@@ -93,5 +95,8 @@ Question 2 will additionally merge an external video-games ratings dataset (more
 
 | Task Name | Status | Assignee | Due | Priority | Summary |
 |------------|------------|------------|------------|------------|------------|
-| Proposal & questions | Awaiting Review | Pascal | Week 3 | High | Finalize dataset, two questions, analysis plan |
-| Wrangle film data | Not started | Pascal | Week 4 | High | Parse release era, filter USD box office, create profit/roi |
+| Proposal & questions | Done | Pascal | Week 3 | High | Finalize dataset, two questions, analysis plan |
+| Wrangle film data | started | Pascal | Week 4 | High | Parse release era, filter USD box office, create profit/roi |
+| Review feedback | Not started | Pascal | Week 5 | Medium | Implement user feedback |
+| Write-up | Not started | Pascal | Week 6 | High | Create plots and finalize Analysis |
+| Presentation | Not started | Pascal | Week 7 | Medium | Get slides ready for presentation |

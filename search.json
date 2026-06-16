@@ -1,0 +1,121 @@
+[
+  {
+    "objectID": "proposal.html",
+    "href": "proposal.html",
+    "title": "Final Project",
+    "section": "",
+    "text": "library(tidyverse)"
+  },
+  {
+    "objectID": "proposal.html#dataset",
+    "href": "proposal.html#dataset",
+    "title": "Final Project",
+    "section": "Dataset",
+    "text": "Dataset\n\ngame_films &lt;- read_csv(\"data/game_films.csv\")\n\nglimpse(game_films)\n\nRows: 439\nColumns: 20\n$ category                      &lt;chr&gt; \"Theatrical releases\", \"Theatrical relea…\n$ subcategory                   &lt;chr&gt; \"English\", \"English\", \"English\", \"Englis…\n$ title                         &lt;chr&gt; \"Super Mario Bros.\", \"Double Dragon\", \"S…\n$ director                      &lt;chr&gt; \"Rocky Morton and Annabel Jankel\", \"Jame…\n$ release_date                  &lt;date&gt; 1993-05-28, 1994-11-04, 1994-12-23, 199…\n$ release_date_raw              &lt;chr&gt; \"May 28, 1993\", \"November 4, 1994\", \"Dec…\n$ air_date_raw                  &lt;chr&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, …\n$ worldwide_box_office_currency &lt;chr&gt; \"$\", \"$\", \"$\", \"$\", \"$\", \"$\", \"$\", \"$\", …\n$ worldwide_box_office          &lt;dbl&gt; 38912465, 4152699, 99423521, 124741822, …\n$ rotten_tomatoes               &lt;dbl&gt; 29, 12, 11, 47, 4, 10, 20, 36, 24, 3, 18…\n$ metacritic                    &lt;dbl&gt; 35, 40, 34, 60, 11, 21, 33, 33, 43, 15, …\n$ cinema_score                  &lt;chr&gt; \"B+\", \"F\", \"B-\", \"A-\", \"C+\", \"D\", \"B\", \"…\n$ distributor                   &lt;chr&gt; \"Buena Vista Pictures Distribution\", \"Gr…\n$ original_game_publisher       &lt;chr&gt; \"Nintendo\", \"Technōs Japan\", \"Capcom\", \"…\n$ budget_currency               &lt;chr&gt; \"$\", \"$\", \"$\", \"$\", \"$\", \"$\", \"$\", \"$\", …\n$ budget_low                    &lt;dbl&gt; 4.20e+07, 7.80e+06, 3.50e+07, 2.00e+07, …\n$ budget_high                   &lt;dbl&gt; 4.80e+07, 7.80e+06, 3.50e+07, 2.00e+07, …\n$ domestic_box_office           &lt;chr&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, …\n$ subject                       &lt;chr&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, …\n$ network                       &lt;chr&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, …\n\n\n\ngame_films |&gt; \n  count(category, sort = TRUE)\n\n# A tibble: 5 × 2\n  category                         n\n  &lt;chr&gt;                        &lt;int&gt;\n1 Theatrical releases            246\n2 Documentaries on video games    67\n3 Direct-to-video                 54\n4 Short films                     46\n5 Television films                26\n\n\nThis TidyTuesday dataset, Films Based on Video Games, is scraped from the Wikipedia article List of films based on video games and curated by Georgios Karamanis. Each row is one film adaptation, with 20 variables spanning 439 films released since the early 1980s to upcoming titles.\nSource: TidyTuesday, 2026-06-09, scraped from Wikipedia’s List of films based on video games.\nIt covers theatrical releases, direct-to-video, TV films, shorts, and documentaries, recording box office, budgets, critic and audience scores, distributors, and the original game publisher. I chose it because game-to-film adaptations have been growing greatly in the past decades, which raises questions as to how these adaptations actually do.\nQuestion 2 will additionally merge an external video-games ratings dataset (more on that below)."
+  },
+  {
+    "objectID": "proposal.html#questions",
+    "href": "proposal.html#questions",
+    "title": "Final Project",
+    "section": "Questions",
+    "text": "Questions\n\nCommercial performance. Among films adapted from video games, how does worldwide box office vary based on the publisher of the video game that was adapted into a film and the time in which it was released, and how often do these films even break even?\nGame vs. film ratings. For video game franchises adapted into film, how do the films’ review scores compare to the ratings of their corresponding original games, and does this game-vs-film gap differ across publishers or different times?"
+  },
+  {
+    "objectID": "proposal.html#analysis-plan",
+    "href": "proposal.html#analysis-plan",
+    "title": "Final Project",
+    "section": "Analysis plan",
+    "text": "Analysis plan\n\nQuestion 1: Commercial performance\n\nVariables used: worldwide_box_office, worldwide_box_office_currency, budget_low, budget_high, original_game_publisher, release_date.\nVariables to create: release_era (decade, from release_date), profit and roi (box office to mid-budget), box_office_real (adjusting for inflation via CPI), a collapsed publisher factor (top publishers + “Other”).\nFiltering: restrict to $(USD) box office for comparability (82 films); box office + budget overlap is 62 films, which I will use as the profitability sample.\nApproach: box office and return on investment summarized by publisher (bar/boxplot) and by era (trend), plus a budget vs box-office scatter plot to show which adaptations actually turned a profit.\nExternal Data merged: Annual U.S. CPI, used to convert box office amounts into inflation-adjusted dollars.\n\n\n\nQuestion 2: Game vs. film ratings\n\nVariables used (films): metacritic, rotten_tomatoes, cinema_score, original_game_publisher, release_date.\nVariables to create: a franchise key applied to both tables via str_detect (e.g., all “Resident Evil” titles -&gt; one franchise), franchise level averages of game and film scores, a rating_gap = average game score - average film score, numeric conversion of cinema_score letter grades for an audience comparison.\nExternal Data merged: Video Game Sales with Ratings (VGChartz + Metacritic), providing Critic_Score (0-100, same scale as film Metacritic) and User_Score (0-10) per game.\nJoin: group_by(franchise) |&gt; summarize(...) on each side, then left_join, giving one row per franchise.\nApproach: a scatter plot of the average game score vs. the average film score per franchise, with a reference line. Points above the line are franchises whose films were better-reviewed than their games, as opposed to points below which are the opposite. I will then group the rating_gap (game score - film score) by publisher and by era to see whether certain publishers or periods show consistently larger gaps."
+  },
+  {
+    "objectID": "proposal.html#plan-of-attack",
+    "href": "proposal.html#plan-of-attack",
+    "title": "Final Project",
+    "section": "Plan of attack",
+    "text": "Plan of attack\nLiving document - updated at least weekly.\n\n\n\n\n\n\n\n\n\n\n\nTask Name\nStatus\nAssignee\nDue\nPriority\nSummary\n\n\n\n\nProposal & questions\nDone\nPascal\nWeek 3\nHigh\nFinalize dataset, two questions, analysis plan\n\n\nWrangle film data\nstarted\nPascal\nWeek 4\nHigh\nParse release era, filter USD box office, create profit/roi\n\n\nReview feedback\nNot started\nPascal\nWeek 5\nMedium\nImplement user feedback\n\n\nWrite-up\nNot started\nPascal\nWeek 6\nHigh\nCreate plots and finalize Analysis\n\n\nPresentation\nNot started\nPascal\nWeek 7\nMedium\nGet slides ready for presentation"
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Final Project",
+    "section": "",
+    "text": "This TidyTuesday dataset, Films Based on Video Games, is scraped from the Wikipedia article List of films based on video games and curated by Georgios Karamanis. Each row is one film adaptation, with r ncol(game_films) variables spanning r nrow(game_films) films released since the early 1980s to upcoming titles.\nSource: TidyTuesday, 2026-06-09, scraped from Wikipedia’s List of films based on video games.\nIt covers theatrical releases, direct-to-video, TV films, shorts, and documentaries, recording box office, budgets, critic and audience scores, distributors, and the original game publisher. I chose it because game-to-film adaptations have been growing greatly in the past decades, which raises questions as to how these adaptations actually do."
+  },
+  {
+    "objectID": "index.html#abstract",
+    "href": "index.html#abstract",
+    "title": "Final Project",
+    "section": "",
+    "text": "This TidyTuesday dataset, Films Based on Video Games, is scraped from the Wikipedia article List of films based on video games and curated by Georgios Karamanis. Each row is one film adaptation, with r ncol(game_films) variables spanning r nrow(game_films) films released since the early 1980s to upcoming titles.\nSource: TidyTuesday, 2026-06-09, scraped from Wikipedia’s List of films based on video games.\nIt covers theatrical releases, direct-to-video, TV films, shorts, and documentaries, recording box office, budgets, critic and audience scores, distributors, and the original game publisher. I chose it because game-to-film adaptations have been growing greatly in the past decades, which raises questions as to how these adaptations actually do."
+  },
+  {
+    "objectID": "about.html",
+    "href": "about.html",
+    "title": "About",
+    "section": "",
+    "text": "This project was developed by [Pascal] For INFO 526 - Data Analysis and Visualization at the University of Arizona, taught by Dr. Greg Chism. The team is comprised of the following team members.\n\nTeam member 1: My name is Pascal and I am a graduate student."
+  },
+  {
+    "objectID": "presentation.html#quarto",
+    "href": "presentation.html#quarto",
+    "title": "Final Project",
+    "section": "Quarto",
+    "text": "Quarto\n\nThe presentation is created using the Quarto CLI\n## sets the start of a new slide"
+  },
+  {
+    "objectID": "presentation.html#layouts",
+    "href": "presentation.html#layouts",
+    "title": "Final Project",
+    "section": "Layouts",
+    "text": "Layouts\nYou can use plain text\n\n\n\nor bullet points1\n\n\nor in two columns\n\n\nlike\nthis\n\nAnd add footnotes"
+  },
+  {
+    "objectID": "presentation.html#code",
+    "href": "presentation.html#code",
+    "title": "Final Project",
+    "section": "Code",
+    "text": "Code\n\n\n# A tibble: 2 × 5\n  term        estimate std.error statistic       p.value\n  &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;         &lt;dbl&gt;\n1 (Intercept)   25.3      3.08        8.22 0.00000000358\n2 speed         -0.116    0.0642     -1.81 0.0806       \n\n\n# A tibble: 1 × 12\n  r.squared adj.r.squared sigma statistic p.value    df logLik   AIC   BIC\n      &lt;dbl&gt;         &lt;dbl&gt; &lt;dbl&gt;     &lt;dbl&gt;   &lt;dbl&gt; &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;\n1    0.0983        0.0682  5.82      3.27  0.0806     1  -101.  207.  212.\n# ℹ 3 more variables: deviance &lt;dbl&gt;, df.residual &lt;int&gt;, nobs &lt;int&gt;"
+  },
+  {
+    "objectID": "presentation.html#plots",
+    "href": "presentation.html#plots",
+    "title": "Final Project",
+    "section": "Plots",
+    "text": "Plots"
+  },
+  {
+    "objectID": "presentation.html#plot-and-text",
+    "href": "presentation.html#plot-and-text",
+    "title": "Final Project",
+    "section": "Plot and text",
+    "text": "Plot and text\n\n\n\nSome text\ngoes here"
+  },
+  {
+    "objectID": "presentation.html#tables",
+    "href": "presentation.html#tables",
+    "title": "Final Project",
+    "section": "Tables",
+    "text": "Tables\nIf you want to generate a table, make sure it is in the HTML format (instead of Markdown or other formats), e.g.,\n\n\n\n\n\nspecies\nisland\nbill_length_mm\nbill_depth_mm\nflipper_length_mm\nbody_mass_g\nsex\n\n\n\n\nAdelie\nTorgersen\n39.1\n18.7\n181\n3750\nmale\n\n\nAdelie\nTorgersen\n39.5\n17.4\n186\n3800\nfemale\n\n\nAdelie\nTorgersen\n40.3\n18.0\n195\n3250\nfemale\n\n\nAdelie\nTorgersen\nNA\nNA\nNA\nNA\nNA\n\n\nAdelie\nTorgersen\n36.7\n19.3\n193\n3450\nfemale\n\n\nAdelie\nTorgersen\n39.3\n20.6\n190\n3650\nmale"
+  },
+  {
+    "objectID": "presentation.html#images",
+    "href": "presentation.html#images",
+    "title": "Final Project",
+    "section": "Images",
+    "text": "Images\n\nImage credit: Danielle Navarro, Percolate."
+  },
+  {
+    "objectID": "presentation.html#math-expressions",
+    "href": "presentation.html#math-expressions",
+    "title": "Final Project",
+    "section": "Math Expressions",
+    "text": "Math Expressions\nYou can write LaTeX math expressions inside a pair of dollar signs, e.g. $\\alpha+\\beta$ renders \\(\\alpha + \\beta\\). You can use the display style with double dollar signs:\n$$\\bar{X}=\\frac{1}{n}\\sum_{i=1}^nX_i$$\n\\[\\bar{X}=\\frac{1}{n}\\sum_{i=1}^nX_i\\]\nLimitations:\n\nThe source code of a LaTeX math expression must be in one line, unless it is inside a pair of double dollar signs, in which case the starting $$ must appear in the very beginning of a line, followed immediately by a non-space character, and the ending $$ must be at the end of a line, led by a non-space character;\nThere should not be spaces after the opening $ or before the closing $."
+  },
+  {
+    "objectID": "presentation.html#feeling-adventurous",
+    "href": "presentation.html#feeling-adventurous",
+    "title": "Final Project",
+    "section": "Feeling adventurous?",
+    "text": "Feeling adventurous?\n\nYou are welcomed to use the default styling of the slides. In fact, that’s what I expect majority of you will do. You will differentiate yourself with the content of your presentation.\nBut some of you might want to play around with slide styling. Some solutions for this can be found at https://quarto.org/docs/presentations/revealjs."
+  }
+]

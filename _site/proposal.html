@@ -4376,19 +4376,20 @@ $ network                       &lt;chr&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, 
 <h3 class="anchored" data-anchor-id="question-1-commercial-performance">Question 1: Commercial performance</h3>
 <ul>
 <li><p><strong>Variables used:</strong> <code>worldwide_box_office</code>, <code>worldwide_box_office_currency</code>, <code>budget_low</code>, <code>budget_high</code>, <code>original_game_publisher</code>, <code>release_date</code>.</p></li>
-<li><p><strong>Variables to create:</strong> <code>release_era</code> (decade, from <code>release_date</code>), <code>profit</code> and <code>roi</code> (box office to mid-budget), a collapsed publisher factor (top publishers + “Other”).</p></li>
+<li><p><strong>Variables to create:</strong> <code>release_era</code> (decade, from <code>release_date</code>), <code>profit</code> and <code>roi</code> (box office to mid-budget), <code>box_office_real</code> (adjusting for inflation via CPI), a collapsed publisher factor (top publishers + “Other”).</p></li>
 <li><p><strong>Filtering:</strong> restrict to <code>$(USD)</code> box office for comparability (82 films); box office + budget overlap is 62 films, which I will use as the profitability sample.</p></li>
-<li><p><strong>Approach:</strong> box office and Return on Investment summarized by publisher (bar/boxplot) and by era (trend), plus a budget vs box-office scatter plot to show which adaptations actually turned a profit.</p></li>
+<li><p><strong>Approach:</strong> box office and return on investment summarized by publisher (bar/boxplot) and by era (trend), plus a budget vs box-office scatter plot to show which adaptations actually turned a profit.</p></li>
+<li><p><strong>External Data merged:</strong> <em>Annual U.S. CPI</em>, used to convert box office amounts into inflation-adjusted dollars.</p></li>
 </ul>
 </section>
 <section id="question-2-game-vs.-film-ratings" class="level3">
 <h3 class="anchored" data-anchor-id="question-2-game-vs.-film-ratings">Question 2: Game vs. film ratings</h3>
 <ul>
 <li><p><strong>Variables used (films):</strong> <code>metacritic</code>, <code>rotten_tomatoes</code>, <code>cinema_score</code>, <code>original_game_publisher</code>, <code>release_date</code>.</p></li>
-<li><p><strong>Variables to create:</strong> a <code>franchise</code> key applied to both tables via <code>str_detect</code> (e.g., all “Resident Evil” titles -&gt; one franchise), franchise level averages of game and film scores, a <code>rating_gap</code> = game score - film score, numeric conversion of <code>cinema_score</code> letter grades for an audience comparison.</p></li>
+<li><p><strong>Variables to create:</strong> a <code>franchise</code> key applied to both tables via <code>str_detect</code> (e.g., all “Resident Evil” titles -&gt; one franchise), franchise level averages of game and film scores, a <code>rating_gap</code> = average game score - average film score, numeric conversion of <code>cinema_score</code> letter grades for an audience comparison.</p></li>
 <li><p><strong>External Data merged:</strong> <em>Video Game Sales with Ratings</em> (VGChartz + Metacritic), providing <code>Critic_Score</code> (0-100, same scale as film Metacritic) and <code>User_Score</code> (0-10) per game.</p></li>
 <li><p><strong>Join:</strong> <code>group_by(franchise) |&gt; summarize(...)</code> on each side, then <code>left_join</code>, giving one row per franchise.</p></li>
-<li><p><strong>Approach:</strong> scatter plot of average game score vs. average film score per franchise with a reference line (agreement), and the gap broken out by publisher/era.</p></li>
+<li><p><strong>Approach:</strong> a scatter plot of the average game score vs. the average film score per franchise, with a reference line. Points above the line are franchises whose films were better-reviewed than their games, as opposed to points below which are the opposite. I will then group the <code>rating_gap</code> (game score - film score) by publisher and by era to see whether certain publishers or periods show consistently larger gaps.</p></li>
 </ul>
 </section>
 </section>
@@ -4417,7 +4418,7 @@ $ network                       &lt;chr&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, 
 <tbody>
 <tr class="odd">
 <td>Proposal &amp; questions</td>
-<td>Awaiting Review</td>
+<td>Done</td>
 <td>Pascal</td>
 <td>Week 3</td>
 <td>High</td>
@@ -4425,11 +4426,35 @@ $ network                       &lt;chr&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, 
 </tr>
 <tr class="even">
 <td>Wrangle film data</td>
-<td>Not started</td>
+<td>started</td>
 <td>Pascal</td>
 <td>Week 4</td>
 <td>High</td>
 <td>Parse release era, filter USD box office, create profit/roi</td>
+</tr>
+<tr class="odd">
+<td>Review feedback</td>
+<td>Not started</td>
+<td>Pascal</td>
+<td>Week 5</td>
+<td>Medium</td>
+<td>Implement user feedback</td>
+</tr>
+<tr class="even">
+<td>Write-up</td>
+<td>Not started</td>
+<td>Pascal</td>
+<td>Week 6</td>
+<td>High</td>
+<td>Create plots and finalize Analysis</td>
+</tr>
+<tr class="odd">
+<td>Presentation</td>
+<td>Not started</td>
+<td>Pascal</td>
+<td>Week 7</td>
+<td>Medium</td>
+<td>Get slides ready for presentation</td>
 </tr>
 </tbody>
 </table>
@@ -5014,32 +5039,37 @@ $ network                       &lt;chr&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, 
 <span id="cb6-77"><a href="#cb6-77"></a></span>
 <span id="cb6-78"><a href="#cb6-78"></a><span class="ss">- </span>**Variables used:** <span class="in">`worldwide_box_office`</span>, <span class="in">`worldwide_box_office_currency`</span>, <span class="in">`budget_low`</span>, <span class="in">`budget_high`</span>, <span class="in">`original_game_publisher`</span>, <span class="in">`release_date`</span>.</span>
 <span id="cb6-79"><a href="#cb6-79"></a></span>
-<span id="cb6-80"><a href="#cb6-80"></a><span class="ss">- </span>**Variables to create:** <span class="in">`release_era`</span> (decade, from <span class="in">`release_date`</span>), <span class="in">`profit`</span> and <span class="in">`roi`</span> (box office to mid-budget), a collapsed publisher factor (top publishers + &quot;Other&quot;).</span>
+<span id="cb6-80"><a href="#cb6-80"></a><span class="ss">- </span>**Variables to create:** <span class="in">`release_era`</span> (decade, from <span class="in">`release_date`</span>), <span class="in">`profit`</span> and <span class="in">`roi`</span> (box office to mid-budget), <span class="in">`box_office_real`</span> (adjusting for inflation via CPI), a collapsed publisher factor (top publishers + &quot;Other&quot;).</span>
 <span id="cb6-81"><a href="#cb6-81"></a></span>
 <span id="cb6-82"><a href="#cb6-82"></a><span class="ss">- </span>**Filtering:** restrict to <span class="in">`$(USD)`</span> box office for comparability (<span class="in">`r n_usd`</span> films); box office + budget overlap is <span class="in">`r n_profit`</span> films, which I will use as the profitability sample.</span>
 <span id="cb6-83"><a href="#cb6-83"></a></span>
-<span id="cb6-84"><a href="#cb6-84"></a><span class="ss">- </span>**Approach:** box office and Return on Investment summarized by publisher (bar/boxplot) and by era (trend), plus a budget vs box-office scatter plot to show which adaptations actually turned a profit.</span>
+<span id="cb6-84"><a href="#cb6-84"></a><span class="ss">- </span>**Approach:** box office and return on investment summarized by publisher (bar/boxplot) and by era (trend), plus a budget vs box-office scatter plot to show which adaptations actually turned a profit.</span>
 <span id="cb6-85"><a href="#cb6-85"></a></span>
-<span id="cb6-86"><a href="#cb6-86"></a><span class="fu">### Question 2: Game vs. film ratings</span></span>
+<span id="cb6-86"><a href="#cb6-86"></a><span class="ss">- </span>**External Data merged:** *Annual U.S. CPI*, used to convert box office amounts into inflation-adjusted dollars. </span>
 <span id="cb6-87"><a href="#cb6-87"></a></span>
-<span id="cb6-88"><a href="#cb6-88"></a><span class="ss">- </span>**Variables used (films):** <span class="in">`metacritic`</span>, <span class="in">`rotten_tomatoes`</span>, <span class="in">`cinema_score`</span>, <span class="in">`original_game_publisher`</span>, <span class="in">`release_date`</span>.</span>
+<span id="cb6-88"><a href="#cb6-88"></a><span class="fu">### Question 2: Game vs. film ratings</span></span>
 <span id="cb6-89"><a href="#cb6-89"></a></span>
-<span id="cb6-90"><a href="#cb6-90"></a><span class="ss">- </span>**Variables to create:** a <span class="in">`franchise`</span> key applied to both tables via <span class="in">`str_detect`</span> (e.g., all &quot;Resident Evil&quot; titles -<span class="sc">\&gt;</span> one franchise), franchise level averages of game and film scores, a <span class="in">`rating_gap`</span> = game score - film score, numeric conversion of <span class="in">`cinema_score`</span> letter grades for an audience comparison.</span>
+<span id="cb6-90"><a href="#cb6-90"></a><span class="ss">- </span>**Variables used (films):** <span class="in">`metacritic`</span>, <span class="in">`rotten_tomatoes`</span>, <span class="in">`cinema_score`</span>, <span class="in">`original_game_publisher`</span>, <span class="in">`release_date`</span>.</span>
 <span id="cb6-91"><a href="#cb6-91"></a></span>
-<span id="cb6-92"><a href="#cb6-92"></a><span class="ss">- </span>**External Data merged:** *Video Game Sales with Ratings* (VGChartz + Metacritic), providing <span class="in">`Critic_Score`</span> (0-100, same scale as film Metacritic) and <span class="in">`User_Score`</span> (0-10) per game.</span>
+<span id="cb6-92"><a href="#cb6-92"></a><span class="ss">- </span>**Variables to create:** a <span class="in">`franchise`</span> key applied to both tables via <span class="in">`str_detect`</span> (e.g., all &quot;Resident Evil&quot; titles -<span class="sc">\&gt;</span> one franchise), franchise level averages of game and film scores, a <span class="in">`rating_gap`</span> = average game score - average film score, numeric conversion of <span class="in">`cinema_score`</span> letter grades for an audience comparison.</span>
 <span id="cb6-93"><a href="#cb6-93"></a></span>
-<span id="cb6-94"><a href="#cb6-94"></a><span class="ss">- </span>**Join:** <span class="in">`group_by(franchise) |&gt; summarize(...)`</span> on each side, then <span class="in">`left_join`</span>, giving one row per franchise.</span>
+<span id="cb6-94"><a href="#cb6-94"></a><span class="ss">- </span>**External Data merged:** *Video Game Sales with Ratings* (VGChartz + Metacritic), providing <span class="in">`Critic_Score`</span> (0-100, same scale as film Metacritic) and <span class="in">`User_Score`</span> (0-10) per game.</span>
 <span id="cb6-95"><a href="#cb6-95"></a></span>
-<span id="cb6-96"><a href="#cb6-96"></a><span class="ss">- </span>**Approach:** scatter plot of average game score vs. average film score per franchise with a reference line (agreement), and the gap broken out by publisher/era.</span>
+<span id="cb6-96"><a href="#cb6-96"></a><span class="ss">- </span>**Join:** <span class="in">`group_by(franchise) |&gt; summarize(...)`</span> on each side, then <span class="in">`left_join`</span>, giving one row per franchise.</span>
 <span id="cb6-97"><a href="#cb6-97"></a></span>
-<span id="cb6-98"><a href="#cb6-98"></a><span class="fu">## Plan of attack</span></span>
+<span id="cb6-98"><a href="#cb6-98"></a><span class="ss">- </span>**Approach:** a scatter plot of the average game score vs. the average film score per franchise, with a reference line. Points above the line are franchises whose films were better-reviewed than their games, as opposed to points below which are the opposite. I will then group the <span class="in">`rating_gap`</span> (game score - film score) by publisher and by era to see whether certain publishers or periods show consistently larger gaps.</span>
 <span id="cb6-99"><a href="#cb6-99"></a></span>
-<span id="cb6-100"><a href="#cb6-100"></a>*Living document - updated at least weekly.*</span>
+<span id="cb6-100"><a href="#cb6-100"></a><span class="fu">## Plan of attack</span></span>
 <span id="cb6-101"><a href="#cb6-101"></a></span>
-<span id="cb6-102"><a href="#cb6-102"></a><span class="pp">|</span> Task Name <span class="pp">|</span> Status <span class="pp">|</span> Assignee <span class="pp">|</span> Due <span class="pp">|</span> Priority <span class="pp">|</span> Summary <span class="pp">|</span></span>
-<span id="cb6-103"><a href="#cb6-103"></a><span class="pp">|------------|------------|------------|------------|------------|------------|</span></span>
-<span id="cb6-104"><a href="#cb6-104"></a><span class="pp">|</span> Proposal &amp; questions <span class="pp">|</span> Awaiting Review <span class="pp">|</span> Pascal <span class="pp">|</span> Week 3 <span class="pp">|</span> High <span class="pp">|</span> Finalize dataset, two questions, analysis plan <span class="pp">|</span></span>
-<span id="cb6-105"><a href="#cb6-105"></a><span class="pp">|</span> Wrangle film data <span class="pp">|</span> Not started <span class="pp">|</span> Pascal <span class="pp">|</span> Week 4 <span class="pp">|</span> High <span class="pp">|</span> Parse release era, filter USD box office, create profit/roi <span class="pp">|</span></span>
+<span id="cb6-102"><a href="#cb6-102"></a>*Living document - updated at least weekly.*</span>
+<span id="cb6-103"><a href="#cb6-103"></a></span>
+<span id="cb6-104"><a href="#cb6-104"></a><span class="pp">|</span> Task Name <span class="pp">|</span> Status <span class="pp">|</span> Assignee <span class="pp">|</span> Due <span class="pp">|</span> Priority <span class="pp">|</span> Summary <span class="pp">|</span></span>
+<span id="cb6-105"><a href="#cb6-105"></a><span class="pp">|------------|------------|------------|------------|------------|------------|</span></span>
+<span id="cb6-106"><a href="#cb6-106"></a><span class="pp">|</span> Proposal &amp; questions <span class="pp">|</span> Done <span class="pp">|</span> Pascal <span class="pp">|</span> Week 3 <span class="pp">|</span> High <span class="pp">|</span> Finalize dataset, two questions, analysis plan <span class="pp">|</span></span>
+<span id="cb6-107"><a href="#cb6-107"></a><span class="pp">|</span> Wrangle film data <span class="pp">|</span> started <span class="pp">|</span> Pascal <span class="pp">|</span> Week 4 <span class="pp">|</span> High <span class="pp">|</span> Parse release era, filter USD box office, create profit/roi <span class="pp">|</span></span>
+<span id="cb6-108"><a href="#cb6-108"></a><span class="pp">|</span> Review feedback <span class="pp">|</span> Not started <span class="pp">|</span> Pascal <span class="pp">|</span> Week 5 <span class="pp">|</span> Medium <span class="pp">|</span> Implement user feedback <span class="pp">|</span></span>
+<span id="cb6-109"><a href="#cb6-109"></a><span class="pp">|</span> Write-up <span class="pp">|</span> Not started <span class="pp">|</span> Pascal <span class="pp">|</span> Week 6 <span class="pp">|</span> High <span class="pp">|</span> Create plots and finalize Analysis <span class="pp">|</span></span>
+<span id="cb6-110"><a href="#cb6-110"></a><span class="pp">|</span> Presentation <span class="pp">|</span> Not started <span class="pp">|</span> Pascal <span class="pp">|</span> Week 7 <span class="pp">|</span> Medium <span class="pp">|</span> Get slides ready for presentation <span class="pp">|</span></span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

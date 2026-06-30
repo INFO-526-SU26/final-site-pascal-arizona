@@ -3,8 +3,11 @@
 .RData
 .Ruserdata
 
+/_site/
+/_freeze/
 /.quarto/
+*_files/
+index.html
 
 **/*.quarto_ipynb
 
-/_site/

@@ -14,13 +14,186 @@ format:
 editor: visual
 execute:
   warning: false
-  echo: false
+  message: false
+
 ---
 
-## Abstract
+# Write up
 
-This TidyTuesday dataset, **Films Based on Video Games**, is scraped from the Wikipedia article [*List of films based on video games*](https://en.wikipedia.org/wiki/List_of_films_based_on_video_games) and curated by Georgios Karamanis. Each row is one film adaptation, with `r ncol(game_films)` variables spanning `r nrow(game_films)` films released since the early 1980s to upcoming titles.
+```{r setup, include=FALSE}
+if (!require("pacman")) 
+  install.packages("pacman")
+
+# packages
+pacman::p_load(tidyverse)
+
+# loading the data in early for intro
+game_films <- read_csv("data/game_films.csv")
+```
+
+## Introduction to the data
+
+This TidyTuesday dataset, **Films Based on Video Games**, is scraped from the Wikipedia article [*List of films based on video games*](https://en.wikipedia.org/wiki/List_of_films_based_on_video_games) and curated by Georgios Karamanis. Each row is one film adaptation, with `r nrow(game_films)` films described by `r ncol(game_films)` variables and spanning releases from the mid-1980s to upcoming titles.
+
+The data covers theatrical releases, direct-to-video, TV films, shorts, and documentaries, recording box office, budgets, critic and audience scores, distributors, and the original game publisher.
+
+I chose this dataset because I was interested in seeing how game-to-film adaptations fared over the past decade. With a rapidly growing market I wanted to see if there is any relation between the two by looking at how both have been received commercially and critically.
 
 Source: [TidyTuesday, 2026-06-09](https://github.com/rfordatascience/tidytuesday/tree/main/data/2026/2026-06-09), scraped from Wikipedia's *List of films based on video games*.
 
-It covers theatrical releases, direct-to-video, TV films, shorts, and documentaries, recording box office, budgets, critic and audience scores, distributors, and the original game publisher. I chose it because game-to-film adaptations have been growing greatly in the past decades, which raises questions as to how these adaptations actually do.
+## Question 1: Profitability and box office across publishers and eras
+
+### Introduction
+
+Question 1 will be dealing with the commercial performance of game-to-film adaptations. In order to explore it, I had to create several columns such as `release_era`, `profit` and `roi`, and `box_office_real` built from each film’s worldwide box office, budget, source-game publisher, and release date. I also created a `broke_even` boolean column, so that it would be easier to show the break-even line on a scatter plot, and therefore easier to distinguish each era’s profit and loss for each adaptation. As for why I chose this question, it is because I was curious whether there is any overlap between gamers and movie enthusiasts, and if so, what that trajectory looks like. This is similar to how one might ask about books and their respective film adaptations.
+
+### Approach
+
+The approach I took to answering my first question was by creating two different views, one faceted scatter plot and one boxplot. The first one, the faceted scatter plot was chosen deliberately, since it shows the profit and loss of each film adaptation at a glance without cluttering the view. I had initially tried an all-in-one scatter plot that showed eras by colored dots. However, it wasn't as clear which era was more profitable than others, so I wanted to make sure this distinction is visible at a glance.
+
+As for the second plot, the boxplot, I wanted to focus more on the publishers themselves rather than the eras the films were released in. The reason I chose the boxplot over a bar chart is that it shows each publisher's whole distribution, the median, the spread, and any outliers. This matters and would have been lost in the bar chart, since some publishers only have a few film adaptations and one hit could easily distort the mean. Overall, I ordered the publishers by median, because it makes it immediately obvious which publishers were successful in their adaptations.
+
+
+
+### Analysis
+
+#### Extracting
+
+```{r}
+#| label: loading-the-data
+# U.S. Bureau of Labor Statistics regarding Consumer Price Index (CPI)
+# Source: cu.data.1.AllItems (https://download.bls.gov/pub/time.series/cu/),
+# exported to data/cpi-data.csv.
+cu <- read_tsv("data/cpi-data.csv", na = c("", "NA", "-")) |>   # "-" marks a withheld value
+  mutate(series_id = str_trim(series_id)) |>
+  filter(series_id == "CUUR0000SA0")
+
+cpi_annual <- cu |>                          # BLS official annual average (period M13)
+  filter(period == "M13") |>
+  transmute(year, cpi = value)
+
+cpi_current <- cu |>                         # current year (2026) has no annual yet:
+  filter(period %in% c("M01", "M02", "M03", "M04", "M05", "M06",
+                       "M07", "M08", "M09", "M10", "M11", "M12"),
+         !year %in% cpi_annual$year) |>      # average its available monthly values
+  group_by(year) |>
+  summarise(cpi = mean(value, na.rm = TRUE), .groups = "drop")
+
+cpi <- bind_rows(cpi_annual, cpi_current) |> arrange(year)
+cpi_base <- cpi |> filter(year == 2025) |> pull(cpi)  # choosing this year for most recent complete year
+```
+
+
+#### Transforming
+
+```{r}
+#| label: data-wrangling
+q1_profitability <- game_films |>
+  filter(
+    worldwide_box_office_currency == "$",
+    !is.na(worldwide_box_office),
+    !is.na(budget_low),
+    budget_currency == "$"
+  ) |>
+  mutate(
+    year = year(release_date),                                            
+    release_era = factor(str_c(floor(year / 10) * 10, "s")),              # group into decades
+    publisher = str_trim(str_extract(original_game_publisher, "^[^|]+")), # first studio listed (before any "|")
+    publisher = fct_lump_min(publisher, min = 3),                         # keep publishers with 3+ films, rest -> "Other"
+    budget_midpoint = (budget_low + budget_high) / 2,                     # budget estimate from the low-high range
+    profit = worldwide_box_office - budget_midpoint,                      
+    roi = worldwide_box_office / budget_midpoint,                         
+    broke_even = worldwide_box_office >= budget_midpoint                  # TRUE if the film broke-even or made a profit
+  ) |>
+  left_join(cpi, by = "year") |>                                          
+  mutate(box_office_real = worldwide_box_office * cpi_base / cpi)         # adjusted for inflation as of 2025
+
+n_profit <- nrow(q1_profitability)
+```
+
+#### The Visualization (Plots)
+
+##### 1) Profitability by Era Plot
+
+```{r}
+#| label: fig-break-even
+#| fig-cap: "Each film shown as profit (blue) or loss (red); the dashed line represents the estimated break-even point."
+#| fig-alt: "Four scatter panels, one per release era (1990s, 2000s, 2010s, 2020s), plotting worldwide box office against estimated budget on a logarithmic scale, each with a dashed break-even line. Blue dots represent adaptations that were profitable, while red dots show a loss. The 2000s facet has many red dots below the line, while the 2010s and 2020s panels show most of their blue dots above the line."
+#| fig-width: 8
+#| fig-height: 6
+
+# shows each film as profit (blue) or loss (red), the dashed line represents the estimated break-even point.
+q1_plot_data <- q1_profitability |>
+  mutate(result = factor(if_else(broke_even, "Profit", "Loss"),
+                         levels = c("Profit", "Loss")))
+
+ggplot(q1_plot_data, aes(budget_midpoint, worldwide_box_office, color = result)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray50") +  # break-even line
+  geom_point(size = 2, alpha = 0.9) +
+  facet_wrap(~ release_era) +
+  # using log scales since budgets and grosses span several orders of magnitude ($1M to >$1B)
+  scale_x_log10(labels = scales::label_dollar(scale_cut = scales::cut_short_scale())) +
+  scale_y_log10(labels = scales::label_dollar(scale_cut = scales::cut_short_scale())) +
+  # added Set1's blue and red manually in order to keep profit on the left side
+  scale_color_manual(values = c("Profit" = "#377EB8", "Loss" = "#E41A1C"), name = NULL) + 
+  labs(
+    title = "Most adaptations turn a profit, except in the 2000s",
+    subtitle = "Worldwide box office vs. budget midpoint; the dashed line is break-even",
+    x = "Production budget (midpoint)", y = "Worldwide box office"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    panel.spacing = unit(1.4, "lines"),
+    panel.border = element_rect(color = "gray72", fill = NA, linewidth = 0.5),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "gray91", linewidth = 0.3),
+    strip.background = element_rect(fill = "gray91", color = "gray72", linewidth = 0.5),
+    strip.text = element_text(face = "bold", margin = margin(4, 0, 4, 0)),
+    legend.position = "top"
+  )
+```
+
+##### 2) Box Office by Publisher Plot
+```{r}
+#| label: fig-publisher
+#| fig-cap: "Each box spans the middle 50% of a publisher's films by box office; the red line marks the overall median."
+#| fig-alt: "Horizontal boxplot of inflation-adjusted worldwide box office for 60 adaptations grouped by source-game publisher, ordered by median, with each publisher's film count labeled. A dashed red line marks the overall median of about 171 million dollars, labeled at the top. While Nintendo, Sega and Eidos sit above it, Konami and Sony fall below. Overall, Ubisoft has the widest spread."
+#| fig-width: 8
+#| fig-height: 6
+overall_med <- median(q1_profitability$box_office_real)
+
+# appends each publisher's film count to its label, ordered by median box office
+q1_publisher <- q1_profitability |>
+  add_count(publisher, name = "pub_n") |>
+  mutate(publisher_lab = fct_reorder(str_c(publisher, "  (", pub_n, " films)"),
+                                     box_office_real, .fun = median))
+
+ggplot(q1_publisher, aes(box_office_real, publisher_lab)) +
+  geom_vline(xintercept = overall_med, linetype = "dashed", color = "#E41A1C", linewidth = 0.7) +  # overall median
+  geom_boxplot(fill = "gray84", color = "gray42", outlier.color = "gray54", width = 0.6) +
+  annotate("label", x = overall_med, y = 9.2,
+           label = str_c("Overall median ($", round(overall_med / 1e6), "M)"),   # tracks the base year
+           size = 3, color = "#E41A1C", fill = "white", label.size = 0.4) +
+  scale_x_log10(labels = scales::label_dollar(scale_cut = scales::cut_short_scale())) +
+  scale_y_discrete(expand = expansion(add = c(0.6, 1.3))) +
+  coord_cartesian(clip = "off") +
+  labs(
+    title = "Box office varies widely by source-game publisher",
+    subtitle = "Publishers ordered by median worldwide box office",
+    x = "Worldwide box office (inflation-adjusted to 2025 dollars)", y = NULL
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(panel.grid.minor = element_blank())
+```
+
+### Discussion
+
+Across the 60 films, ranging from the early 1990s to present, `r sum(q1_profitability$broke_even)` of `r nrow(q1_profitability)` (`r round(100 * mean(q1_profitability$broke_even))`%) appear to have broken even or turned a profit. As can be seen in @fig-break-even, however, not each era is the same. Out of all the eras, 2000s was the least profitable, while the 2010s and 2020s were the most. This fits with the current industry trend where game-to-film adaptations increasingly see higher returns and have grown substantially in number. Notably, the 2020s reached this in only six years, less than a full decade, suggesting the market has not yet peaked or saturated.
+
+As for the publisher boxplot in @fig-publisher, Nintendo and Sega sit at the highest, with median grosses around \$440M and \$420M (adj. for inflation as of 2025). This is in contrast to Konami and Sony Interactive Entertainment, which sit at or under \$75M. Interestingly, Capcom seems to contribute the most in terms of adaptations while landing in the middle of the chart. One could argue that the 2000s era was less profitable due to a narrower market adoption, and that with the advent of better animation and the normalization of video games becoming part of pop culture, it would make sense that more recent eras are seeing such a surge in popularity, and therefore profit.
+
+Last but not least, I would like to address some of the caveats I came across while wrangling the data. Since the budget is recorded as a low-high range, I had to use a midpoint, which means that if a film is at or close to break-even (the dashed line) in @fig-break-even, it is unclear whether it was actually profitable. Also keep in mind that several publishers, such as Eidos, Konami, and Sony, only have three film adaptations each, so the sample size may not be large enough to show a real difference. Overall, I limited the sample to the 60 films that reported both box office and budget in US dollars, and made sure to adjust all amounts for inflation as of 2025.
+
+
+
+## Question 2:

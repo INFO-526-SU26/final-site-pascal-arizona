@@ -37,9 +37,11 @@ This TidyTuesday dataset, **Films Based on Video Games**, is scraped from the Wi
 
 The data covers theatrical releases, direct-to-video, TV films, shorts, and documentaries, recording box office, budgets, critic and audience scores, distributors, and the original game publisher.
 
-I chose this dataset because I was interested in seeing how game-to-film adaptations fared over the past decade. With a rapidly growing market I wanted to see if there is any relation between the two by looking at how both have been received commercially and critically.
+Additionally, in order to compare films against the games they are based on, I had to bring in a second dataset, **Video Game Sales and Ratings** (from Kaggle), which shows video games alongside their Metacritic `Critic_Score` (0-100, the same scale as the films' Metacritic rating) and `User_Score`. This allows me to match a film's franchise to its original game, while also giving me further insight on how each was reviewed. One limitation, however, is that the most recent data is as of 2020, which I will be addressing in Question 2.
 
-Source: [TidyTuesday, 2026-06-09](https://github.com/rfordatascience/tidytuesday/tree/main/data/2026/2026-06-09), scraped from Wikipedia's *List of films based on video games*.
+I chose this data because I was interested in seeing how game-to-film adaptations fared over the past decade. With a rapidly growing market I wanted to see if there is any relation between the two by looking at how both have been received commercially and critically.
+
+Source: [TidyTuesday, 2026-06-09](https://github.com/rfordatascience/tidytuesday/tree/main/data/2026/2026-06-09), scraped from Wikipedia's *List of films based on video games* and [Video Game Sales and Ratings](https://www.kaggle.com/datasets/thedevastator/video-game-sales-and-ratings) (Kaggle).
 
 ## Question 1: Profitability and box office across publishers and eras
 
@@ -52,8 +54,6 @@ Question 1 will be dealing with the commercial performance of game-to-film adapt
 The approach I took to answering my first question was by creating two different views, one faceted scatter plot and one boxplot. The first one, the faceted scatter plot was chosen deliberately, since it shows the profit and loss of each film adaptation at a glance without cluttering the view. I had initially tried an all-in-one scatter plot that showed eras by colored dots. However, it wasn't as clear which era was more profitable than others, so I wanted to make sure this distinction is visible at a glance.
 
 As for the second plot, the boxplot, I wanted to focus more on the publishers themselves rather than the eras the films were released in. The reason I chose the boxplot over a bar chart is that it shows each publisher's whole distribution, the median, the spread, and any outliers. This matters and would have been lost in the bar chart, since some publishers only have a few film adaptations and one hit could easily distort the mean. Overall, I ordered the publishers by median, because it makes it immediately obvious which publishers were successful in their adaptations.
-
-
 
 ### Analysis
 
@@ -103,7 +103,7 @@ q1_profitability <- game_films |>
     budget_midpoint = (budget_low + budget_high) / 2,                     # budget estimate from the low-high range
     profit = worldwide_box_office - budget_midpoint,                      
     roi = worldwide_box_office / budget_midpoint,                         
-    broke_even = worldwide_box_office >= budget_midpoint                  # TRUE if the film broke-even or made a profit
+    broke_even = worldwide_box_office >= budget_midpoint                  # TRUE if the film broke even or made a profit
   ) |>
   left_join(cpi, by = "year") |>                                          
   mutate(box_office_real = worldwide_box_office * cpi_base / cpi)         # adjusted for inflation as of 2025
@@ -188,7 +188,7 @@ ggplot(q1_publisher, aes(box_office_real, publisher_lab)) +
 
 ### Discussion
 
-Across the 60 films, ranging from the early 1990s to present, `r sum(q1_profitability$broke_even)` of `r nrow(q1_profitability)` (`r round(100 * mean(q1_profitability$broke_even))`%) appear to have broken even or turned a profit. As can be seen in @fig-break-even, however, not each era is the same. Out of all the eras, 2000s was the least profitable, while the 2010s and 2020s were the most. This fits with the current industry trend where game-to-film adaptations increasingly see higher returns and have grown substantially in number. Notably, the 2020s reached this in only six years, less than a full decade, suggesting the market has not yet peaked or saturated.
+Across the 60 films, ranging from the early 1990s to present, `r sum(q1_profitability$broke_even)` of `r nrow(q1_profitability)` (`r round(100 * mean(q1_profitability$broke_even))`%) appear to have broken even or turned a profit. As can be seen in @fig-break-even, however, not every era is the same. Out of all the eras, 2000s was the least profitable, while the 2010s and 2020s were the most. This fits with the current industry trend where game-to-film adaptations increasingly see higher returns and have grown substantially in number. Notably, the 2020s reached this in only six years, less than a full decade, suggesting the market has not yet peaked or saturated.
 
 As for the publisher boxplot in @fig-publisher, Nintendo and Sega sit at the highest, with median grosses around \$440M and \$420M (adj. for inflation as of 2025). This is in contrast to Konami and Sony Interactive Entertainment, which sit at or under \$75M. Interestingly, Capcom seems to contribute the most in terms of adaptations while landing in the middle of the chart. One could argue that the 2000s era was less profitable due to a narrower market adoption, and that with the advent of better animation and the normalization of video games becoming part of pop culture, it would make sense that more recent eras are seeing such a surge in popularity, and therefore profit.
 
@@ -196,4 +196,190 @@ Last but not least, I would like to address some of the caveats I came across wh
 
 
 
-## Question 2:
+## Question 2: Game vs. film ratings across franchises
+
+### Introduction
+
+Question 2 is focused on comparing game and film critic scores with one another. To achieve this, I had to pull in data from an outside source (Kaggle) so that I could map Metacritic scores 1:1 for both films and games. In order to do so, I had to first assign each game to its corresponding franchise, so that its score could be compared against that franchise's film. I also derived a `release_era` column from the release date for era grouping, and a `rating_gap` column (the average game score minus the average film score) in order to measure how large the gap is and whether any trends can be observed over time.
+
+### Approach
+
+Similar to Question 1, my approach will be centered around two different views, one being a dumbbell chart and the other a boxplot.
+
+For the first one, I intentionally deviated from the proposed scatter plot. While the scatter plot had a clear "parity" line separating the scores for films and games, it made reading the chart difficult, as all of the game scores were clustered together on the right side of the chart because no game score was below its corresponding film score. The dumbbell chart, by contrast, not only shows the game vs. film score gap clearly, but also avoids label crowding. Lastly, sorting by gap allows people to quickly see which franchises had the widest and narrowest differences overall.
+
+As for the second plot, the boxplot, I selected to group the `rating_gap` by the era of when each franchise's first film was produced. This gave me a good indication of how the distribution of the `rating_gap` varied by era and if it shifted across eras. Although my original proposal suggested grouping the `rating_gap` by both era and publisher, since I was limited to drawing two charts from this data, I opted to go with era as it told a better story. While many publishers map to just one or two franchises, era reveals whether the game-to-film rating gap has widened or narrowed over the past decades. As a final touch, I overlaid the individual franchises as points so people viewing the chart are not deceived by the small sample size.
+
+### Analysis
+
+#### Extracting
+
+```{r}
+#| label: extracting-game-ratings
+# Video game sales + Metacritic ratings (thedevastator, Kaggle).
+# Source: https://www.kaggle.com/datasets/thedevastator/video-game-sales-and-ratings
+video_game_ratings <- read_csv("data/video_game_ratings.csv")
+```
+
+#### Transforming
+
+```{r}
+#| label: transforming-ratings
+# map each title with its franchise
+assign_franchise <- function(title) {
+  t <- str_to_lower(title)
+  case_when(
+    str_detect(t, "resident evil")           ~ "Resident Evil",
+    str_detect(t, "pokémon|pokemon")         ~ "Pokemon",
+    str_detect(t, "mortal kombat")           ~ "Mortal Kombat",
+    str_detect(t, "sonic")                   ~ "Sonic",
+    str_detect(t, "street fighter")          ~ "Street Fighter",
+    str_detect(t, "tomb raider|lara croft")  ~ "Tomb Raider",
+    str_detect(t, "final fantasy")           ~ "Final Fantasy",
+    str_detect(t, "silent hill")             ~ "Silent Hill",
+    str_detect(t, "mario")                   ~ "Super Mario",
+    str_detect(t, "hitman")                  ~ "Hitman",
+    str_detect(t, "angry birds")             ~ "Angry Birds",
+    str_detect(t, "assassin.?s creed")       ~ "Assassins Creed",
+    str_detect(t, "\\bdoom\\b")              ~ "Doom",
+    str_detect(t, "need for speed")          ~ "Need for Speed",
+    str_detect(t, "prince of persia")        ~ "Prince of Persia",
+    str_detect(t, "warcraft")                ~ "Warcraft",
+    str_detect(t, "uncharted")               ~ "Uncharted",
+    str_detect(t, "max payne")               ~ "Max Payne",
+    str_detect(t, "alone in the dark")       ~ "Alone in the Dark",
+    str_detect(t, "bloodrayne")              ~ "BloodRayne",
+    str_detect(t, "double dragon")           ~ "Double Dragon",
+    str_detect(t, "dead or alive")           ~ "Dead or Alive",
+    str_detect(t, "house of the dead")       ~ "House of the Dead",
+    str_detect(t, "ratchet")                 ~ "Ratchet & Clank",
+    str_detect(t, "\\brampage\\b")           ~ "Rampage",
+    str_detect(t, "monster hunter")          ~ "Monster Hunter",
+    str_detect(t, "borderlands")             ~ "Borderlands",
+    str_detect(t, "dungeon siege")           ~ "Dungeon Siege",
+    .default = NA_character_
+  )
+}
+
+# games -> one row per franchise, averaging the games' Metacritic critic scores
+game_ratings <- video_game_ratings |>
+  mutate(franchise = assign_franchise(Name)) |>
+  filter(!is.na(franchise)) |>
+  group_by(franchise) |>
+  summarise(game_score = mean(Critic_Score, na.rm = TRUE), n_games = n())
+
+# films -> one row per franchise, averaging the films' metacritic, and choosing
+# when the franchise first reached the screen
+film_ratings <- game_films |>
+  mutate(franchise = assign_franchise(title), year = year(release_date)) |>
+  filter(!is.na(franchise)) |>
+  group_by(franchise) |>
+  summarise(
+    film_score = mean(metacritic, na.rm = TRUE),
+    n_films    = n(),
+    first_year = min(year, na.rm = TRUE)
+  ) |>
+  mutate(
+    decade = str_c(floor(first_year / 10) * 10, "s"),
+    # merging single point entry from the 1980s to keep things consistent with Question 1
+    release_era = fct_recode(factor(decade),
+                             "1990s and earlier" = "1980s",
+                             "1990s and earlier" = "1990s")
+  )
+
+# only keep franchises present in both tables
+# I decided to use an inner join rather than the left_join I had initially proposed
+# since I wanted to make sure franchises without a game or film match are excluded
+q2_franchise_ratings <- film_ratings |>
+  inner_join(game_ratings, by = "franchise") |>
+  filter(!is.nan(film_score)) |>
+  mutate(rating_gap = game_score - film_score)
+```
+
+#### The Visualization (Plots)
+
+##### 1) Game vs. Film Rating Gap
+
+```{r}
+#| label: fig-dumbbell-ratings-plot
+#| fig-cap: "Each line shows the difference between a franchise's average game score vs. its average film score; franchises are ordered by gap size."
+#| fig-alt: "A dumbbell chart of 28 franchises sorted by rating gap. Each row shows the average film score (red) vs. the average game score (blue). The gray line that connects both represents the width of the gap. Every franchise shows game scores (blue) averaging higher than their respective film scores, which means that overall games scored higher. While 'House of the Dead' and 'Dungeon Siege' seem to have the widest gaps at the top of the chart, 'Angry Birds' and 'Rampage' sit at the bottom with the narrowest gaps."
+#| fig-width: 8
+#| fig-height: 8
+
+# reshape to long format so both score types can be drawn with one geom_point, colored by type
+q2_long <- q2_franchise_ratings |>
+  select(franchise, game_score, film_score, rating_gap) |>
+  pivot_longer(c(game_score, film_score), names_to = "type", values_to = "score") |>
+  mutate(type = if_else(type == "game_score", "Game", "Film"))
+
+ggplot(q2_franchise_ratings, aes(y = fct_reorder(franchise, rating_gap))) +
+  geom_segment(aes(x = film_score, xend = game_score,
+                   yend = fct_reorder(franchise, rating_gap)),
+               color = "gray72", linewidth = 1) +
+  geom_point(data = q2_long, aes(x = score, color = type), size = 2.6) +
+  scale_color_manual(values = c("Film" = "#E41A1C", "Game" = "#377EB8"), name = NULL) +
+  scale_x_continuous(limits = c(0, 100)) +
+  labs(
+    title = "The game-to-film rating gap, by franchise",
+    subtitle = "Each line connects a franchise's average game score to its average film score",
+    x = "Critic score (Metacritic)", y = NULL
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    legend.position = "top"
+  )
+```
+
+##### 2) Rating Gap by Era
+
+```{r}
+#| label: fig-rating-gap-by-era-plot
+#| fig-cap: "Rating gap by the era of each franchise's first film; boxes show the spread, gray dots the individual franchises."
+#| fig-alt: "A boxplot showing the game-to-film Metacritic rating gap (average game score minus average film score) across four eras defined by a franchise's first film: 1990s and earlier, 2000s, 2010s, and 2020s, with each franchise shown as a gray dot. Overall, boxes are above the zero line, so games have a higher rating than films in every era. The medians do not seem to trend in one direction (circa 36, 48, 31, and 44), and the later eras only have a few franchises to draw upon."
+#| fig-width: 8
+#| fig-height: 6
+ggplot(q2_franchise_ratings, aes(release_era, rating_gap, fill = release_era)) +
+  geom_boxplot(alpha = 0.85, outlier.shape = NA, width = 0.6) +   # outliers are hidden
+  geom_jitter(width = 0.12, size = 1.8, alpha = 0.6, color = "gray28") +
+  scale_fill_brewer(palette = "Blues") +
+  labs(
+    title = "The game-to-film rating gap shows no consistent trend across eras",
+    subtitle = "Gap = average game score minus average film score, per franchise (n = 28)",
+    x = "Era of the franchise's first film", y = "Rating gap (Metacritic score)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    legend.position = "none"
+  )
+```
+
+### Discussion
+
+```{r}
+#| label: quick-user-score-analysis
+#| include: false
+# does the game-over-film pattern hold with user scores as well?
+user_gap_analysis <- video_game_ratings |>
+  mutate(user_100 = as.numeric(na_if(User_Score, "tbd")) * 10,
+         franchise = assign_franchise(Name)) |>
+  filter(!is.na(franchise)) |>
+  group_by(franchise) |>
+  summarise(game_user = mean(user_100, na.rm = TRUE), .groups = "drop") |>
+  inner_join(q2_franchise_ratings, by = "franchise") |>
+  mutate(user_gap = game_user - film_score)
+
+user_franchises_favoring_games  <- sum(user_gap_analysis$user_gap > 0, na.rm = TRUE)   # franchises where games still win
+user_franchises_total  <- sum(!is.na(user_gap_analysis$user_gap))
+user_critic_gap_correlation    <- cor(user_gap_analysis$rating_gap, user_gap_analysis$user_gap, use = "complete.obs")
+```
+
+As can be seen clearly in @fig-dumbbell-ratings-plot, games out-score their film adaptations across all `r nrow(q2_franchise_ratings)` franchises. The average gap size is around `r round(mean(q2_franchise_ratings$rating_gap))` Metacritic score points, although the sizes vary depending on the franchise, which can clearly be seen when comparing **House of the Dead's** wide gap with **Angry Birds'** narrower one. If I had to take a guess, I would say that this is due to games relying more on interactivity than cut-scene heaviness. It also does not help that most adaptations were low-budget films attached to popular game brands. With that being said, it is important to note that several of the franchises listed here only had one film or a handful of games to draw upon, so there might not be enough data to substantiate my speculation.
+
+Now, as to whether the gap has changed over time (by era), I was not able to draw a definitive conclusion when looking at @fig-rating-gap-by-era-plot. While it is interesting to see the median gap moving up and down between eras, rather than steadily widening or narrowing, I unfortunately have to say that there is no consistent trend overall. This poses an interesting question, however, and would need further analysis, but one might draw the conclusion that while games have out-reviewed their films fairly consistently, it did not halt the trend of seeing more game-to-film adaptations over the past decades. Does that mean review scores matter less for a game-to-film adaptation's success than what we might assume?
+
+Since the question is outside the scope of this project, I will instead mention a few limitations with @fig-rating-gap-by-era-plot. One needs to keep in mind that the later eras only had a few franchises, that placing a franchise by its first film means that a long-running series is fixed to its debut era even if the films spanned decades, and that the data cutoff year is 2020. Also I would like to note that my entire premise for Question 2 was only looking at critic scores and not user scores, since the film side has no audience metric on a comparable scale. Despite that, and knowing that this would actually need a proper analysis to confirm, I did a quick analysis comparing the games' user scores against the film critic scores, which revealed that user scores still point in the same direction, as `r user_franchises_favoring_games` of `r user_franchises_total` franchises favor the games, with an r value of `r round(user_critic_gap_correlation, 2)`. Last but not least, if we were to tie this back to Question 1, the gap between games and films remained consistently in the games' favor while the industry grew at the same time, suggesting that commercial success might have been driven by other factors more than critical reception alone.

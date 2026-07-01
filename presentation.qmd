@@ -9,7 +9,8 @@ format:
     margin: 0.02
     width: 1100
     background-image: "images/watercolour_sys02_img34_teacup-ocean.jpg"
-    
+resources:
+  - images/
 execute:
   echo: false
   warning: false

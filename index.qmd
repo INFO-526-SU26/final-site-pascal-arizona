@@ -47,6 +47,8 @@ Source: [TidyTuesday, 2026-06-09](https://github.com/rfordatascience/tidytuesday
 
 ### Introduction
 
+> *Among films adapted from video games, how does worldwide box office vary based on the publisher of the video game that was adapted into a film and the time in which it was released, and how often do these films even break even?*
+
 Question 1 will be dealing with the commercial performance of game-to-film adaptations. In order to explore it, I had to create several columns such as `release_era`, `profit` and `roi`, and `box_office_real` built from each film’s worldwide box office, budget, source-game publisher, and release date. I also created a `broke_even` boolean column, so that it would be easier to show the break-even line on a scatter plot, and therefore easier to distinguish each era’s profit and loss for each adaptation. As for why I chose this question, it is because I was curious whether there is any overlap between gamers and movie enthusiasts, and if so, what that trajectory looks like. This is similar to how one might ask about books and their respective film adaptations.
 
 ### Approach
@@ -200,6 +202,8 @@ Last but not least, I would like to address some of the caveats I came across wh
 
 ### Introduction
 
+> *For video game franchises adapted into film, how do the films' review scores compare to the ratings of their corresponding original games, and does this game-vs-film gap differ across publishers or eras?*
+
 Question 2 is focused on comparing game and film critic scores with one another. To achieve this, I had to pull in data from an outside source (Kaggle) so that I could map Metacritic scores 1:1 for both films and games. In order to do so, I had to first assign each game to its corresponding franchise, so that its score could be compared against that franchise's film. I also derived a `release_era` column from the release date for era grouping, and a `rating_gap` column (the average game score minus the average film score) in order to measure how large the gap is and whether any trends can be observed over time.
 
 ### Approach
@@ -305,7 +309,7 @@ q2_franchise_ratings <- film_ratings |>
 #| fig-cap: "Each line shows the difference between a franchise's average game score vs. its average film score; franchises are ordered by gap size."
 #| fig-alt: "A dumbbell chart of 28 franchises sorted by rating gap. Each row shows the average film score (red) vs. the average game score (blue). The gray line that connects both represents the width of the gap. Every franchise shows game scores (blue) averaging higher than their respective film scores, which means that overall games scored higher. While 'House of the Dead' and 'Dungeon Siege' seem to have the widest gaps at the top of the chart, 'Angry Birds' and 'Rampage' sit at the bottom with the narrowest gaps."
 #| fig-width: 8
-#| fig-height: 8
+#| fig-height: 7
 
 # reshape to long format so both score types can be drawn with one geom_point, colored by type
 q2_long <- q2_franchise_ratings |>

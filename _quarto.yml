@@ -6,7 +6,7 @@ website:
   navbar:
     right:
       - icon: github
-        href: https://github.com/INFO-526-SU26/final-project-pascal-arizona # Needs to be changed to your project repo
+        href: https://github.com/INFO-526-SU26/final-site-pascal-arizona # Needs to be changed to your project repo
     left:
       - text: Project
         href: index.qmd

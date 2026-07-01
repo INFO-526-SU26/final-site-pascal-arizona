@@ -18,7 +18,7 @@ execute:
 
 ---
 
-# Write up
+# Write-up
 
 ```{r setup, include=FALSE}
 if (!require("pacman")) 
@@ -82,7 +82,7 @@ cpi_current <- cu |>                         # current year (2026) has no annual
   summarise(cpi = mean(value, na.rm = TRUE), .groups = "drop")
 
 cpi <- bind_rows(cpi_annual, cpi_current) |> arrange(year)
-cpi_base <- cpi |> filter(year == 2025) |> pull(cpi)  # choosing this year for most recent complete year
+cpi_base <- cpi |> filter(year == 2025) |> pull(cpi)  # choosing 2025 for most recent complete year
 ```
 
 

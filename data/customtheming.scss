@@ -1,3 +1,74 @@
 /*-- scss:defaults --*/
+$body-color: #14213d;
+$link-color: #1d4ed8;
+$presentation-heading-color: #14213d;
 
-$body-bg: #ffffff;
+/*-- scss:rules --*/
+
+// Background image behind all slides
+.reveal-viewport {
+  background-image: url("../images/watercolour_sys02_img34_teacup-ocean.jpg") !important;
+  background-size: cover !important;
+  background-position: center !important;
+}
+
+// Title slide
+#title-slide {
+  background-color: rgba(255, 255, 255, 0.96);
+  border-radius: 18px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+  padding: 8% 5% !important;
+  min-height: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+}
+
+// Content Slides (.slide.level2)
+.reveal .slides section.slide.level2 {
+  font-size: 0.75em;
+  padding: 4% 5%;
+  background-color: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.15);
+  box-sizing: border-box;
+}
+
+// Divider slides (.slide.level1)
+.reveal .slides section.slide.level1 {
+  background-color: #ffffff !important;
+  border-radius: 18px !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.15) !important;
+  padding: 4% 5% !important;
+  font-size: 1em !important;
+  text-align: center !important;
+  min-height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+// Slide title — accent rule
+.reveal .slides section h2 {
+  margin-top: 0;
+  padding-bottom: 0.25em;
+  margin-bottom: 0.6em;
+  border-bottom: 2px solid #2f6fd0;
+}
+
+// Slide number, changed to white so it is visible
+.reveal .slide-number,
+.reveal .slide-number a {
+  color: #ffffff !important;
+  background-color: transparent !important;
+}
+
+.slide-menu-button {
+  display: none !important;
+}

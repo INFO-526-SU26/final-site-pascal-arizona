@@ -1,163 +1,378 @@
 ---
-title: "Final Project"
-subtitle: "INFO 526 - Summer 2026"
-author: "Pascal"
-title-slide-attributes:
-  data-background-image: images/watercolour_sys02_img34_teacup-ocean.jpg
-  data-background-size: stretch
-  data-background-opacity: "0.7"
-  data-slide-number: none
+title: "When Games Hit the Big Screen"
+subtitle: "Box office, profitability, and ratings of video-game films"
+author: "Pascal Muellner"
 format:
   revealjs:
-    theme:  ['data/customtheming.scss']
-  
-editor: visual
+    theme: ['data/customtheming.scss']
+    slide-number: true
+    margin: 0.02
+    width: 1100
+    background-image: "images/watercolour_sys02_img34_teacup-ocean.jpg"
+    
 execute:
   echo: false
+  warning: false
+  message: false
 ---
-
 ```{r}
-#| label: load-packages
+#| label: setup-questions
 #| include: false
+pacman::p_load(tidyverse)
+theme_set(theme_minimal(base_size = 13))
 
-# Load packages here
-pacman::p_load(tidymodels,
-               tidyverse, kableExtra)
+game_films <- read_csv("data/game_films.csv")
+video_game_ratings <- read_csv("data/video_game_ratings.csv")
 
+# getting cpi data for inflation adjustment
+cu <- read_tsv("data/cpi-data.csv", na = c("", "NA", "-")) |>   # "-" marks a withheld value
+  mutate(series_id = str_trim(series_id)) |>
+  filter(series_id == "CUUR0000SA0")
+
+cpi_annual <- cu |>                          # BLS official annual average (period M13)
+  filter(period == "M13") |>
+  transmute(year, cpi = value)
+
+cpi_current <- cu |>                         # current year (2026) has no annual yet:
+  filter(period %in% c("M01", "M02", "M03", "M04", "M05", "M06",
+                       "M07", "M08", "M09", "M10", "M11", "M12"),
+         !year %in% cpi_annual$year) |>      # average its available monthly values
+  group_by(year) |>
+  summarise(cpi = mean(value, na.rm = TRUE), .groups = "drop")
+
+cpi <- bind_rows(cpi_annual, cpi_current) |> arrange(year)
+cpi_base <- cpi |> filter(year == 2025) |> pull(cpi)  # choosing 2025 for most recent complete year
+
+# profitability and box office (Question 1)
+q1_profitability <- game_films |>
+  filter(
+    worldwide_box_office_currency == "$",
+    !is.na(worldwide_box_office),
+    !is.na(budget_low),
+    budget_currency == "$"
+  ) |>
+  mutate(
+    year = year(release_date),                                            
+    release_era = factor(str_c(floor(year / 10) * 10, "s")),              # group into decades
+    publisher = str_trim(str_extract(original_game_publisher, "^[^|]+")), # first studio listed (before any "|")
+    publisher = fct_lump_min(publisher, min = 3),                         # keep publishers with 3+ films, rest -> "Other"
+    budget_midpoint = (budget_low + budget_high) / 2,                     # budget estimate from the low-high range
+    profit = worldwide_box_office - budget_midpoint,                      
+    roi = worldwide_box_office / budget_midpoint,                         
+    broke_even = worldwide_box_office >= budget_midpoint                  # TRUE if the film broke even or made a profit
+  ) |>
+  left_join(cpi, by = "year") |>                                          
+  mutate(box_office_real = worldwide_box_office * cpi_base / cpi)         # adjusted for inflation as of 2025
+
+n_profit <- nrow(q1_profitability)
+
+# game vs. film rating by critics (Question 2)
+# map each title with its franchise
+assign_franchise <- function(title) {
+  t <- str_to_lower(title)
+  case_when(
+    str_detect(t, "resident evil")           ~ "Resident Evil",
+    str_detect(t, "pokémon|pokemon")         ~ "Pokemon",
+    str_detect(t, "mortal kombat")           ~ "Mortal Kombat",
+    str_detect(t, "sonic")                   ~ "Sonic",
+    str_detect(t, "street fighter")          ~ "Street Fighter",
+    str_detect(t, "tomb raider|lara croft")  ~ "Tomb Raider",
+    str_detect(t, "final fantasy")           ~ "Final Fantasy",
+    str_detect(t, "silent hill")             ~ "Silent Hill",
+    str_detect(t, "mario")                   ~ "Super Mario",
+    str_detect(t, "hitman")                  ~ "Hitman",
+    str_detect(t, "angry birds")             ~ "Angry Birds",
+    str_detect(t, "assassin.?s creed")       ~ "Assassins Creed",
+    str_detect(t, "\\bdoom\\b")              ~ "Doom",
+    str_detect(t, "need for speed")          ~ "Need for Speed",
+    str_detect(t, "prince of persia")        ~ "Prince of Persia",
+    str_detect(t, "warcraft")                ~ "Warcraft",
+    str_detect(t, "uncharted")               ~ "Uncharted",
+    str_detect(t, "max payne")               ~ "Max Payne",
+    str_detect(t, "alone in the dark")       ~ "Alone in the Dark",
+    str_detect(t, "bloodrayne")              ~ "BloodRayne",
+    str_detect(t, "double dragon")           ~ "Double Dragon",
+    str_detect(t, "dead or alive")           ~ "Dead or Alive",
+    str_detect(t, "house of the dead")       ~ "House of the Dead",
+    str_detect(t, "ratchet")                 ~ "Ratchet & Clank",
+    str_detect(t, "\\brampage\\b")           ~ "Rampage",
+    str_detect(t, "monster hunter")          ~ "Monster Hunter",
+    str_detect(t, "borderlands")             ~ "Borderlands",
+    str_detect(t, "dungeon siege")           ~ "Dungeon Siege",
+    .default = NA_character_
+  )
+}
+# games -> one row per franchise, averaging the games' Metacritic critic scores
+game_ratings <- video_game_ratings |>
+  mutate(franchise = assign_franchise(Name)) |>
+  filter(!is.na(franchise)) |>
+  group_by(franchise) |>
+  summarise(game_score = mean(Critic_Score, na.rm = TRUE), n_games = n())
+
+# films -> one row per franchise, averaging the films' metacritic, and choosing
+# when the franchise first reached the screen
+film_ratings <- game_films |>
+  mutate(franchise = assign_franchise(title), year = year(release_date)) |>
+  filter(!is.na(franchise)) |>
+  group_by(franchise) |>
+  summarise(
+    film_score = mean(metacritic, na.rm = TRUE),
+    n_films    = n(),
+    first_year = min(year, na.rm = TRUE)
+  ) |>
+  mutate(
+    decade = str_c(floor(first_year / 10) * 10, "s"),
+    # merging single point entry from the 1980s to keep things consistent with Question 1
+    release_era = fct_recode(factor(decade),
+                             "1990s and earlier" = "1980s",
+                             "1990s and earlier" = "1990s")
+  )
+
+# only keep franchises present in both tables
+# I decided to use an inner join rather than the left_join I had initially proposed
+# since I wanted to make sure franchises without a game or film match are excluded
+q2_franchise_ratings <- film_ratings |>
+  inner_join(game_ratings, by = "franchise") |>
+  filter(!is.nan(film_score)) |>
+  mutate(rating_gap = game_score - film_score)
+
+q2_long <- q2_franchise_ratings |>
+  select(franchise, game_score, film_score, rating_gap) |>
+  pivot_longer(c(game_score, film_score), names_to = "type", values_to = "score") |>
+  mutate(type = if_else(type == "game_score", "Game", "Film"))
 ```
 
+## Two datasets, two questions
+
+::::: columns
+::: {.column width="50%"}
+**The data**
+
+- **439** film adaptations of video games (TidyTuesday / Wikipedia) — box office, budgets, critic scores
+- **\~16,900** games with Metacritic scores (Kaggle) — to compare films against their source games
+:::
+
+::: {.column width="50%"}
+**The questions**
+
+1.  **Commercial:** how does box office vary by the game's *publisher* and *era*, and how often do these films break even?
+2.  **Critical:** how do the films' review scores compare to their *games'* scores, and does that gap change over time/era?
+:::
+:::::
+
+::: notes
+:::
+
+# Question 1: Profitability and Box Office
+
+## Most films profit — but not in the 2000s
+
+::::: columns
+::: {.column width="50%"}
 ```{r}
-#| label: setup
-#| include: false
+#| label: q1-break-even
+#| fig-alt: "Four scatter panels, one per release era (1990s, 2000s, 2010s, 2020s), plotting worldwide box office against estimated budget on a logarithmic scale, each with a dashed break-even line. Blue dots represent adaptations that were profitable, while red dots show a loss. The 2000s facet has many red dots below the line, while the 2010s and 2020s panels show most of their blue dots above the line."
+#| fig-width: 5
+#| fig-height: 4.6
+q1_plot_data <- q1_profitability |>
+  mutate(result = factor(if_else(broke_even, "Profit", "Loss"),
+                         levels = c("Profit", "Loss")))
 
-# Plot theme
-ggplot2::theme_set(ggplot2::theme_minimal(base_size = 11))
-
-# For better figure resolution
-knitr::opts_chunk$set(
-  fig.retina = 3, 
-  dpi = 300, 
-  fig.width = 6, 
-  fig.asp = 0.618 
+ggplot(q1_plot_data, aes(budget_midpoint, worldwide_box_office, color = result)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray50") +  # break-even line
+  geom_point(size = 2, alpha = 0.9) +
+  facet_wrap(~ release_era) +
+  # using log scales since budgets and grosses span several orders of magnitude ($1M to >$1B)
+  scale_x_log10(labels = scales::label_dollar(scale_cut = scales::cut_short_scale())) +
+  scale_y_log10(labels = scales::label_dollar(scale_cut = scales::cut_short_scale())) +
+  # added Set1's blue and red manually in order to keep profit on the left side
+  scale_color_manual(values = c("Profit" = "#377EB8", "Loss" = "#E41A1C"), name = NULL) + 
+  labs(
+    x = "Production budget (midpoint)", y = "Worldwide box office"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    panel.spacing = unit(1.4, "lines"),
+    panel.border = element_rect(color = "gray72", fill = NA, linewidth = 0.5),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "gray91", linewidth = 0.3),
+    strip.background = element_rect(fill = "gray91", color = "gray72", linewidth = 0.5),
+    strip.text = element_text(face = "bold", margin = margin(4, 0, 4, 0)),
+    legend.position = "top"
   )
 ```
-
-```{r}
-#| label: load-data
-#| include: false
-# Load data here
-data(mtcars)
-mtcars$speed <- mtcars$hp / mtcars$wt
-
-data("penguins")
-```
-
-# Using Quarto for presentations
-
-## Quarto
-
-- The presentation is created using the Quarto CLI
-
-- `##` sets the start of a new slide
-
-## Layouts
-
-You can use plain text
-
-::::: columns
-::: {.column width="40%"}
-- or bullet points[^1]
-:::
-
-::: {.column width="60%"}
-or in two columns
-:::
-:::::
-
-[^1]: And add footnotes
-
-- like
-
-- this
-
-## Code
-
-```{r, echo=FALSE}
-model <- lm(mpg ~ speed, data = mtcars) 
-
-model |> tidy()
-
-model |> glance()
-
-```
-
-## Plots
-
-```{r}
-penguins |>
-  mutate(species = ifelse(species == "Adelie", "Adelie", "Other")) |>
-  ggplot(aes(x = flipper_length_mm, y = body_mass_g, color = species)) +
-  geom_point()
-```
-
-## Plot and text
-
-::::: columns
-::: {.column width="50%"}
-- Some text
-
-- goes here
 :::
 
 ::: {.column width="50%"}
-```{r, warning=FALSE, fig.width=5.5}
-penguins |>
-  ggplot(aes(x = bill_length_mm, y = species, color = species)) +
-  geom_boxplot(linewidth = 0.75,
-               outlier.size = 2.5) +
-  theme_minimal(base_size = 15) +
-  theme(legend.key.size = unit(0.8, "cm"))
+```{r}
+#| label: q1-publisher
+#| fig-alt: "Horizontal boxplot of inflation-adjusted worldwide box office for 60 adaptations grouped by source-game publisher, ordered by median, with each publisher's film count labeled. A dashed red line marks the overall median of about 171 million dollars, labeled at the top. While Nintendo, Sega and Eidos sit above it, Konami and Sony fall below. Overall, Ubisoft has the widest spread."
+#| fig-width: 5
+#| fig-height: 4.6
+overall_med <- median(q1_profitability$box_office_real)
+
+# appends each publisher's film count to its label, ordered by median box office
+q1_publisher <- q1_profitability |>
+  add_count(publisher, name = "pub_n") |>
+  mutate(publisher_lab = fct_reorder(str_c(publisher, "  (", pub_n, " films)"),
+                                     box_office_real, .fun = median))
+
+ggplot(q1_publisher, aes(box_office_real, publisher_lab)) +
+  geom_vline(xintercept = overall_med, linetype = "dashed", color = "#E41A1C", linewidth = 0.7) +  # overall median
+  geom_boxplot(fill = "gray84", color = "gray42", outlier.color = "gray54", width = 0.6) +
+  annotate("label", x = overall_med, y = 9.2,
+           label = str_c("Overall median ($", round(overall_med / 1e6), "M)"),   # tracks the base year
+           size = 3, color = "#E41A1C", fill = "white", label.size = 0.4) +
+  scale_x_log10(labels = scales::label_dollar(scale_cut = scales::cut_short_scale())) +
+  scale_y_discrete(expand = expansion(add = c(0.6, 1.3))) +
+  coord_cartesian(clip = "off") +
+  labs(
+    x = "Worldwide box office\n (inflation-adjusted to 2025 dollars)", y = NULL
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(panel.grid.minor = element_blank())
 ```
 :::
 :::::
 
-# A new section...
+- **\~72% break even overall** — but the 2000s dipped below half, then the 2010s-2020s recovered to 80-90%
+- **Nintendo & Sega** lead (median \> \$400M); publishers vary widely
 
-## Tables
+::: notes
+:::
 
-If you want to generate a table, make sure it is in the HTML format (instead of Markdown or other formats), e.g.,
+## What I tried first
 
+::::: columns
+::: {.column width="55%"}
 ```{r}
-penguins |> 
-  head() |>
-  kableExtra::kable() |>
-  kableExtra::kable_styling()
+#| label: q1-alternative-plot
+#| fig-width: 5.6
+#| fig-height: 4.3
+q1_profitability |>
+  ggplot(aes(budget_midpoint, worldwide_box_office, color = release_era)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray54") +
+  geom_point(size = 2.2, alpha = 0.85) +
+  scale_x_log10(labels = scales::label_dollar(scale_cut = scales::cut_short_scale())) +
+  scale_y_log10(labels = scales::label_dollar(scale_cut = scales::cut_short_scale())) +
+  scale_color_brewer(palette = "Set1", name = "Era") +
+  labs(x = "Budget (midpoint)", y = "Worldwide box office") +
+  theme(panel.grid.minor = element_blank())
 ```
+:::
 
-## Images
+::: {.column width="45%"}
+A single scatter colored by era.
 
-![Image credit: Danielle Navarro, Percolate.](images/watercolour_sys02_img34_teacup-ocean.png){fig-align="center" width="500"}
+- The overall trend is visible...
+- ...but you **can't tell how each decade did** for break-even — the colors blend together.
+- **Faceting** into one panel per decade fixed that.
+:::
+:::::
 
-## Math Expressions {.smaller}
+::: notes
+:::
 
-You can write LaTeX math expressions inside a pair of dollar signs, e.g. \$\\alpha+\\beta\$ renders $\alpha + \beta$. You can use the display style with double dollar signs:
+# Question 2: Game vs. film ratings
 
-```         
-$$\bar{X}=\frac{1}{n}\sum_{i=1}^nX_i$$
+## Games always out-review their films
+
+::::: columns
+::: {.column width="52%"}
+```{r}
+#| label: dumbbell-ratings-plot
+#| fig-alt: "A dumbbell chart of 28 franchises sorted by rating gap. Each row shows the average film score (red) vs. the average game score (blue). The gray line that connects both represents the width of the gap. Every franchise shows game scores (blue) averaging higher than their respective film scores, which means that overall games scored higher. While 'House of the Dead' and 'Dungeon Siege' seem to have the widest gaps at the top of the chart, 'Angry Birds' and 'Rampage' sit at the bottom with the narrowest gaps."
+#| fig-width: 5.2
+#| fig-height: 4.0
+ggplot(q2_franchise_ratings, aes(y = fct_reorder(franchise, rating_gap))) +
+  geom_segment(aes(x = film_score, xend = game_score,
+                   yend = fct_reorder(franchise, rating_gap)),
+               color = "gray72", linewidth = 1) +
+  geom_point(data = q2_long, aes(x = score, color = type), size = 2.6) +
+  scale_color_manual(values = c("Film" = "#E41A1C", "Game" = "#377EB8"), name = NULL) +
+  scale_x_continuous(limits = c(0, 100)) +
+  labs(
+    x = "Critic score (Metacritic)", y = NULL
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    legend.position = "top"
+  )
 ```
+:::
 
-$$\bar{X}=\frac{1}{n}\sum_{i=1}^nX_i$$
+::: {.column width="48%"}
+```{r}
+#| label: q2-rating-gap-by-era-plot
+#| fig-alt: "A boxplot showing the game-to-film Metacritic rating gap (average game score minus average film score) across four eras defined by a franchise's first film: 1990s and earlier, 2000s, 2010s, and 2020s, with each franchise shown as a gray dot. Overall, boxes are above the zero line, so games have a higher rating than films in every era. The medians do not seem to trend in one direction (circa 36, 48, 31, and 44), and the later eras only have a few franchises to draw upon."
+#| fig-width: 4.8
+#| fig-height: 4.0
+ggplot(q2_franchise_ratings, aes(release_era, rating_gap, fill = release_era)) +
+  geom_boxplot(alpha = 0.85, outlier.shape = NA, width = 0.6) +   # outliers are hidden
+  geom_jitter(width = 0.12, size = 1.8, alpha = 0.6, color = "gray28") +
+  scale_fill_brewer(palette = "Blues") +
+  labs(
+    x = "Era of the franchise's first film", y = "Rating gap (Metacritic score)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    legend.position = "none"
+  )
+```
+:::
+:::::
 
-Limitations:
+- **All 28 franchises**: games score higher than their films (avg gap **\~39 pts**)
+- Across eras: **no clear trend** — games win consistently, whenever the franchise started
 
-1.  The source code of a LaTeX math expression must be in one line, unless it is inside a pair of double dollar signs, in which case the starting `$$` must appear in the very beginning of a line, followed immediately by a non-space character, and the ending `$$` must be at the end of a line, led by a non-space character;
+::: notes
+:::
 
-2.  There should not be spaces after the opening `$` or before the closing `$`.
+## What I tried first
 
-# Wrap up
+::::: columns
+::: {.column width="55%"}
+```{r}
+#| label: q2-alternative-plot
+#| fig-width: 5.4
+#| fig-height: 4.4
+q2_franchise_ratings |>
+  mutate(label = if_else(rating_gap > 50 | rating_gap < 20, franchise, NA_character_)) |>
+  ggplot(aes(game_score, film_score)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray52") +
+  geom_point(size = 2.4, alpha = 0.9, color = "#377EB8") +
+  geom_text(aes(label = label), na.rm = TRUE, size = 2.6, vjust = -0.7, color = "gray30") +
+  scale_x_continuous(limits = c(0, 100)) + scale_y_continuous(limits = c(0, 100)) +
+  coord_equal() +
+  labs(x = "Game score", y = "Film score") +
+  theme(panel.grid.minor = element_blank())
+```
+:::
 
-## Feeling adventurous?
+::: {.column width="45%"}
+A scatter with a parity line.
 
-- You are welcomed to use the default styling of the slides. In fact, that's what I expect majority of you will do. You will differentiate yourself with the content of your presentation.
+- Every point fell **below the line**, so they all bunched together...
+- ...and the **labels overlapped**.
+- The **dumbbell** gave each franchise its own row and made the gap the line's length.
+:::
+:::::
 
-- But some of you might want to play around with slide styling. Some solutions for this can be found at https://quarto.org/docs/presentations/revealjs.
+::: notes
+:::
+
+# Thank you!
+
+## Takeaways
+
+- **Commercially**, game-to-film adaptations are more profitable than ever — especially since 2010
+- **Critically**, the games still win — *every* franchise's games out-scored its films
+
+*Thank you for watching! Please let me know if you have any questions.*
+
+::: notes
+:::
